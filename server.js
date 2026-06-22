@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 
 // ATTENZIONE: metti la chiave qui o in .env (consigliato)
 const API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6IHKA0XgwUR6TuqzIOVyK4qSIk-4VoHf27QCWuLCqzR9Q";
-const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 // CORS per il frontend (stesso dominio:localhost:3000)
 app.use(cors({
