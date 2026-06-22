@@ -1,12 +1,594 @@
 <!doctype html>
 <html lang="it">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SvuotaFrigo / FitMeal</title>
-    <script type="module" src="/src/main.jsx"></script>
-  </head>
-  <body class="min-h-screen">
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <title>SvuotaFrigo Vanilla + AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 flex flex-col font-sans text-gray-800 pb-20">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-100">
+    <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <div class="bg-emerald-100 p-2 rounded-xl">
+          <span class="text-emerald-600 text-xl">🍽️</span>
+        </div>
+        <div>
+          <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">SvuotaFrigo</h1>
+          <p class="text-[10px] text-gray-400 font-semibold tracking-wider uppercase">
+            Meal Prep &amp; Assistente IA
+          </p>
+        </div>
+      </div>
+      <button
+        id="btn-ai-recipe"
+        class="flex items-center gap-1.5 text-xs font-bold py-2 px-3.5 rounded-xl shadow-sm
+               bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700
+               text-white shadow-violet-200">
+        <span id="btn-ai-recipe-icon">✨</span>
+        <span>Crea Ricetta IA ✨</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Contenuto -->
+  <main class="flex-1 max-w-2xl mx-auto w-full p-4">
+    <!-- errori -->
+    <div id="error-box" class="hidden mb-4 bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+      <div class="shrink-0 mt-0.5">⚠️</div>
+      <div class="flex-1 text-sm font-semibold" id="error-text"></div>
+      <button id="error-close" class="text-red-400 hover:text-red-600 text-sm">✕</button>
+    </div>
+
+    <!-- VISTA: DISPENSA -->
+    <section id="view-pantry" class="space-y-6">
+      <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-bold text-gray-800 mb-1">Cosa c'è in cucina oggi?</h2>
+        <p class="text-xs text-gray-400 mb-4">
+          Aggiungi o rimuovi ingredienti per aggiornare le idee culinarie.
+        </p>
+
+        <div class="flex gap-2 mb-6">
+          <input
+            id="input-pantry"
+            type="text"
+            placeholder="Es. pasta, uova, zucchine..."
+            class="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none
+                   focus:ring-2 focus:ring-emerald-500 bg-gray-50 text-sm transition-all" />
+          <button
+            id="btn-add-pantry"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl transition-colors shadow-lg shadow-emerald-100">
+            +
+          </button>
+        </div>
+
+        <div id="pantry-chips" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="bg-gradient-to-r from-violet-50 to-indigo-50 p-6 rounded-3xl border border-violet-100 relative overflow-hidden">
+        <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <span class="bg-violet-100 text-violet-700 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full tracking-wider">
+              INTEGRAZIONE IA
+            </span>
+            <h3 class="font-extrabold text-violet-950 text-base">Vuoi ricette personalizzate?</h3>
+            <p class="text-violet-800 text-xs leading-relaxed max-w-md">
+              Usa il generatore magico per creare istantaneamente una ricetta basata esattamente su quello che hai a casa!
+            </p>
+          </div>
+          <button
+            id="btn-ai-banner"
+            class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-violet-200 transition-all shrink-0 flex items-center gap-1">
+            ✨ <span>Prova Ora</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISTA: RICETTE -->
+    <section id="view-recipes" class="space-y-4 hidden">
+      <div id="ai-recipe-box" class="hidden space-y-3">
+        <div class="flex justify-between items-center px-1">
+          <h3 class="text-xs font-bold text-violet-500 tracking-wider uppercase flex items-center gap-1.5">
+            ✨ Ricetta Magica Creata
+          </h3>
+          <button id="btn-ai-recipe-clear" class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+            Rimuovi
+          </button>
+        </div>
+        <div
+          id="ai-recipe-card"
+          class="bg-gradient-to-br from-violet-600 to-indigo-700 text-white rounded-3xl p-6 shadow-xl shadow-indigo-100 space-y-4">
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <h2 class="text-lg font-bold text-gray-800 px-1 mb-3">Tutte le ricette classiche</h2>
+        <div id="recipes-list" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <!-- VISTA: CHAT -->
+    <section id="view-ai-chef" class="bg-white rounded-3xl shadow-sm border border-gray-100 h-[65vh] flex flex-col overflow-hidden hidden">
+      <div class="bg-gradient-to-r from-violet-600 to-indigo-600 text-white p-4 flex items-center gap-3 shrink-0">
+        <div class="bg-white/20 p-2 rounded-full">✨</div>
+        <div>
+          <h3 class="font-extrabold text-sm">Chef Personale IA</h3>
+          <p class="text-[10px] text-white/80 font-medium">Chiedi consigli, sostituzioni e ricette al volo</p>
+        </div>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50"></div>
+      <div class="p-3 border-t border-gray-100 bg-white flex gap-2 items-center">
+        <input
+          id="chat-input"
+          type="text"
+          placeholder="Es: Non ho il guanciale per la carbonara, cosa uso?"
+          class="flex-1 bg-slate-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+        <button
+          id="chat-send"
+          class="bg-violet-600 hover:bg-violet-700 text-white p-3 rounded-xl shadow-md transition-all shrink-0">
+          ➤
+        </button>
+      </div>
+    </section>
+
+    <!-- VISTA: PLANNER -->
+    <section id="view-planner" class="space-y-6 hidden">
+      <div class="flex justify-between items-center px-1">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">Il tuo piano settimanale</h2>
+          <p class="text-xs text-gray-400">Pianifica le tue colazioni, pranzi e cene</p>
+        </div>
+        <button
+          id="btn-reset-plan"
+          class="text-xs text-red-500 hover:text-red-700 font-bold bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
+          Reset Piano
+        </button>
+      </div>
+      <div id="planner-days" class="space-y-4"></div>
+    </section>
+  </main>
+
+  <!-- Bottom nav -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 pb-safe z-20 shadow-lg">
+    <div class="max-w-3xl mx-auto flex justify-between">
+      <button data-tab="pantry" class="tab-btn flex flex-col items-center justify-center w-full py-3 text-emerald-600 border-t-2 border-emerald-600 bg-emerald-50">
+        <span>🛒</span><span class="text-[11px] font-medium">Dispensa</span>
+      </button>
+      <button data-tab="recipes" class="tab-btn flex flex-col items-center justify-center w-full py-3 text-gray-400">
+        <span>👨‍🍳</span><span class="text-[11px] font-medium">Ricette</span>
+      </button>
+      <button data-tab="ai-chef" class="tab-btn flex flex-col items-center justify-center w-full py-3 text-violet-400">
+        <span>✨</span><span class="text-[11px] font-medium">Chef IA</span>
+      </button>
+      <button data-tab="planner" class="tab-btn flex flex-col items-center justify-center w-full py-3 text-gray-400">
+        <span>📅</span><span class="text-[11px] font-medium">Piano</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Script principale -->
+  <script>
+    // *** ATTENZIONE: chiave esposta lato client, solo per test locale ***
+    const GEMINI_API_KEY = 'VITE_GEMINI_API_KEY_VALORE' // <-- sostituisci qui
+
+    const GEMINI_URL =
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+
+    // Stato
+    const DAYS = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"]
+    const MEAL_TYPES = ["Colazione","Pranzo","Cena"]
+    const RECIPES_DB = [
+      { id: 1, name: "Carbonara Classica", ingredients: ["pasta","uova","guanciale","pecorino","pepe"], type:"primo", difficulty:"Media" },
+      { id: 2, name: "Pasta al Pomodoro", ingredients: ["pasta","pomodoro","basilico","olio","aglio"], type:"primo", difficulty:"Facile" },
+      { id: 3, name: "Frittata di Zucchine", ingredients: ["uova","zucchine","cipolla","parmigiano","olio"], type:"secondo", difficulty:"Facile" },
+      { id: 4, name: "Insalata Caprese", ingredients: ["pomodoro","mozzarella","basilico","olio"], type:"secondo", difficulty:"Facile" },
+      { id: 5, name: "Risotto ai Funghi", ingredients: ["riso","funghi","brodo","cipolla","vino","burro"], type:"primo", difficulty:"Media" },
+      { id: 6, name: "Pollo al Curry", ingredients: ["pollo","curry","riso","panna","cipolla"], type:"secondo", difficulty:"Media" }
+    ]
+
+    let activeTab = 'pantry'
+    let pantryItems = ['pasta','uova','pomodoro','cipolla']
+    let weeklyPlan = {}
+    let aiRecipe = null
+    let chatMessages = [
+      { role:'assistant', text:'Ciao! Sono il tuo Chef virtuale antispreco. Chiedimi pure consigli su come usare i tuoi ingredienti, sostituzioni ideali o trucchi in cucina! 🍳' }
+    ]
+    let isGeneratingRecipe = false
+    let isSendingMsg = false
+
+    // Schema recipe (per AI)
+    const recipeSchema = {
+      type: "OBJECT",
+      properties: {
+        name: { type: "STRING" },
+        type: { type: "STRING" },
+        difficulty: { type: "STRING" },
+        ingredients: { type: "ARRAY", items: { type: "STRING" } },
+        missingIngredients: { type: "ARRAY", items: { type: "STRING" } },
+        instructions: { type: "ARRAY", items: { type: "STRING" } },
+        tip: { type: "STRING" }
+      },
+      required: ["name","type","difficulty","ingredients","missingIngredients","instructions","tip"]
+    }
+
+    // --- Utility UI ---
+    function showError(msg) {
+      const box = document.getElementById('error-box')
+      const txt = document.getElementById('error-text')
+      txt.textContent = msg
+      box.classList.remove('hidden')
+    }
+    document.getElementById('error-close').onclick = () => {
+      document.getElementById('error-box').classList.add('hidden')
+    }
+
+    function renderTabs() {
+      document.getElementById('view-pantry').classList.toggle('hidden', activeTab !== 'pantry')
+      document.getElementById('view-recipes').classList.toggle('hidden', activeTab !== 'recipes')
+      document.getElementById('view-ai-chef').classList.toggle('hidden', activeTab !== 'ai-chef')
+      document.getElementById('view-planner').classList.toggle('hidden', activeTab !== 'planner')
+    }
+
+    function renderPantry() {
+      const container = document.getElementById('pantry-chips')
+      container.innerHTML = ''
+      if (!pantryItems.length) {
+        container.innerHTML =
+          '<div class="text-center w-full py-8 text-gray-400"><p class="italic text-sm">La tua dispensa è deserta.</p></div>'
+        return
+      }
+      pantryItems.forEach(item => {
+        const span = document.createElement('span')
+        span.className =
+          'inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-100 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-sm'
+        span.innerHTML = '<span>'+item+'</span>'
+        const btn = document.createElement('button')
+        btn.className = 'text-emerald-500 hover:text-emerald-700 ml-0.5'
+        btn.textContent = '✕'
+        btn.onclick = () => {
+          pantryItems = pantryItems.filter(i => i !== item)
+          renderPantry()
+          renderRecipes()
+        }
+        span.appendChild(btn)
+        container.appendChild(span)
+      })
+    }
+
+    function computeSuggestedRecipes() {
+      return RECIPES_DB.map(recipe => {
+        const owned = recipe.ingredients.filter(ing => pantryItems.includes(ing))
+        const missing = recipe.ingredients.filter(ing => !pantryItems.includes(ing))
+        const match = Math.round((owned.length / recipe.ingredients.length) * 100)
+        return { ...recipe, ownedIngredients: owned, missingIngredients: missing, matchPercentage: match }
+      }).sort((a,b) => b.matchPercentage - a.matchPercentage)
+    }
+
+    function renderRecipesList() {
+      const list = document.getElementById('recipes-list')
+      list.innerHTML = ''
+      const recipes = computeSuggestedRecipes()
+      recipes.forEach(recipe => {
+        const isHigh = recipe.matchPercentage >= 75
+        const isMed = recipe.matchPercentage >= 40 && recipe.matchPercentage < 75
+        const wrapper = document.createElement('div')
+        wrapper.className = 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md'
+        wrapper.innerHTML = `
+          <div class="p-5">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                    isHigh ? 'bg-emerald-100 text-emerald-800' :
+                    isMed ? 'bg-amber-100 text-amber-800' : 'bg-red-50 text-red-600'
+                  }">${recipe.matchPercentage}% Match</span>
+                  <span class="text-xs text-gray-400 px-2 border-l border-gray-200 font-semibold">${recipe.type}</span>
+                  <span class="text-xs text-gray-400 font-medium">Difficoltà: ${recipe.difficulty}</span>
+                </div>
+                <h3 class="font-extrabold text-base text-gray-900">${recipe.name}</h3>
+              </div>
+            </div>
+            <div class="mt-3 space-y-1.5">
+              ${
+                recipe.missingIngredients.length
+                  ? `<div class="text-xs font-medium">
+                      <span class="text-red-500 font-bold">Manca: </span>
+                      <span class="text-gray-500">${recipe.missingIngredients.join(', ')}</span>
+                     </div>`
+                  : ''
+              }
+              <div class="text-xs font-medium">
+                <span class="text-emerald-600 font-bold">Hai in frigo: </span>
+                <span class="text-gray-500">${recipe.ownedIngredients.join(', ')}</span>
+              </div>
+            </div>
+          </div>
+        `
+        list.appendChild(wrapper)
+      })
+    }
+
+    function renderPlanner() {
+      const container = document.getElementById('planner-days')
+      container.innerHTML = ''
+      DAYS.forEach(day => {
+        const dayCard = document.createElement('div')
+        dayCard.className = 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden'
+        let inner = `
+          <div class="bg-emerald-50/50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
+            <span class="font-extrabold text-emerald-950 text-sm tracking-wide">${day}</span>
+          </div>
+          <div class="divide-y divide-gray-100">
+        `
+        MEAL_TYPES.forEach(type => {
+          const key = day + '-' + type
+          const meal = weeklyPlan[key]
+          inner += `
+            <div class="px-5 py-3 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-[10px] font-bold text-gray-400 uppercase w-16 tracking-wider">${type}</span>
+                ${
+                  meal
+                    ? `<span class="text-gray-800 font-semibold text-sm">${meal}</span>`
+                    : `<span class="text-gray-300 italic text-xs">Non pianificato</span>`
+                }
+              </div>
+            </div>
+          `
+        })
+        inner += '</div>'
+        dayCard.innerHTML = inner
+        container.appendChild(dayCard)
+      })
+    }
+
+    function renderChat() {
+      const container = document.getElementById('chat-messages')
+      container.innerHTML = ''
+      chatMessages.forEach(msg => {
+        const wrapper = document.createElement('div')
+        wrapper.className = 'flex ' + (msg.role === 'user' ? 'justify-end' : 'justify-start')
+        const bubble = document.createElement('div')
+        bubble.className =
+          'max-w-[85%] rounded-2xl p-3 text-sm shadow-sm leading-relaxed ' +
+          (msg.role === 'user'
+            ? 'bg-violet-600 text-white rounded-br-none font-medium'
+            : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none')
+        bubble.textContent = msg.text
+        wrapper.appendChild(bubble)
+        container.appendChild(wrapper)
+      })
+      container.scrollTop = container.scrollHeight
+    }
+
+    // --- Chiamata generica a Gemini ---
+    async function callGemini(prompt, systemInstruction = "", responseSchema = null) {
+      if (!GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY non impostata')
+      }
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }]
+      }
+
+      if (systemInstruction) {
+        payload.systemInstruction = { parts: [{ text: systemInstruction }] }
+      }
+
+      if (responseSchema) {
+        payload.generationConfig = {
+          responseMimeType: "application/json",
+          responseSchema
+        }
+      }
+
+      let delay = 1000
+      for (let i = 0; i < 4; i++) {
+        try {
+          const r = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          if (!r.ok) throw new Error('HTTP ' + r.status)
+          return await r.json()
+        } catch (err) {
+          if (i === 3) throw err
+          await new Promise(res => setTimeout(res, delay))
+          delay *= 2
+        }
+      }
+    }
+
+    // --- AI: generateAiRecipe ---
+    async function generateAiRecipe() {
+      if (isGeneratingRecipe) return
+      if (!pantryItems.length) {
+        showError('Aggiungi prima almeno un ingrediente alla dispensa!')
+        return
+      }
+      isGeneratingRecipe = true
+      document.getElementById('btn-ai-recipe-icon').textContent = '⏳'
+
+      const pantryString = pantryItems.join(', ')
+      const systemPrompt =
+        "Sei uno chef stellato ed esperto di cucina antispreco. " +
+        "Il tuo compito è inventare una ricetta deliziosa usando principalmente gli ingredienti indicati. " +
+        "Se necessario puoi aggiungere ingredienti base comuni. Rispondi SOLO in italiano e SOLO come JSON che rispetta lo schema."
+      const userPrompt =
+        `I miei ingredienti in dispensa sono: ${pantryString}. ` +
+        "Genera una ricetta fantastica e fantasiosa adatta a questi ingredienti."
+
+      try {
+        const data = await callGemini(userPrompt, systemPrompt, recipeSchema)
+        const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        if (!textResponse) throw new Error('Nessuna risposta dall\'IA')
+        aiRecipe = JSON.parse(textResponse)
+        renderAiRecipeCard()
+        activeTab = 'recipes'
+        renderTabs()
+      } catch (err) {
+        console.error(err)
+        showError('Errore durante la generazione della ricetta IA. Controlla la chiave o riprova.')
+      } finally {
+        isGeneratingRecipe = false
+        document.getElementById('btn-ai-recipe-icon').textContent = '✨'
+      }
+    }
+
+    function renderAiRecipeCard() {
+      const box = document.getElementById('ai-recipe-box')
+      const card = document.getElementById('ai-recipe-card')
+      if (!aiRecipe) {
+        box.classList.add('hidden')
+        return
+      }
+      box.classList.remove('hidden')
+      card.innerHTML = `
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] bg-violet-500 text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Chef IA 🧑‍🍳
+            </span>
+            <span class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
+              ${aiRecipe.type}
+            </span>
+            <span class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
+              Difficoltà: ${aiRecipe.difficulty}
+            </span>
+          </div>
+          <h2 class="text-2xl font-black tracking-tight">${aiRecipe.name}</h2>
+        </div>
+        <div class="bg-white/10 rounded-2xl p-4 backdrop-blur-sm space-y-3">
+          <div>
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-violet-100">Ingredienti utilizzati:</h4>
+            <ul class="text-sm list-disc pl-4 mt-1 font-medium text-white/95">
+              ${(aiRecipe.ingredients || []).map(ing => `<li class="capitalize">${ing}</li>`).join('')}
+            </ul>
+          </div>
+          ${
+            aiRecipe.missingIngredients && aiRecipe.missingIngredients.length
+              ? `<div>
+                  <h4 class="text-xs font-extrabold uppercase tracking-wider text-red-200">
+                    Ingredienti mancanti consigliati:
+                  </h4>
+                  <ul class="text-sm list-disc pl-4 mt-1 font-medium text-red-100">
+                    ${aiRecipe.missingIngredients.map(ing => `<li class="capitalize">${ing}</li>`).join('')}
+                  </ul>
+                </div>`
+              : ''
+          }
+        </div>
+        <div class="space-y-2">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-violet-100">Preparazione:</h4>
+          <ol class="text-sm space-y-2.5 list-decimal pl-4 text-white/90">
+            ${(aiRecipe.instructions || []).map(step => `<li class="leading-relaxed pl-1">${step}</li>`).join('')}
+          </ol>
+        </div>
+        ${
+          aiRecipe.tip
+            ? `<div class="bg-white/10 p-3 rounded-xl text-xs italic text-violet-50 border-l-2 border-white/40">
+                 💡 <strong>Consiglio antispreco dello chef:</strong> ${aiRecipe.tip}
+               </div>`
+            : ''
+        }
+      `
+    }
+
+    // --- AI: chat ---
+    async function sendChatMessage() {
+      if (isSendingMsg) return
+      const input = document.getElementById('chat-input')
+      const text = input.value.trim()
+      if (!text) return
+
+      chatMessages.push({ role:'user', text })
+      input.value = ''
+      renderChat()
+
+      isSendingMsg = true
+      try {
+        const pantryString = pantryItems.join(', ')
+        const systemPrompt =
+          `Sei lo "Chef Personale SvuotaFrigo ✨", un assistente di cucina amichevole e creativo. ` +
+          `Suggerisci modifiche, sostituzioni, trucchi di cottura basandoti sulla dispensa: ${pantryString}. ` +
+          `Rispondi in italiano in modo pratico e conciso.`
+
+        const history = chatMessages
+          .slice(-6)
+          .map(m => `${m.role === 'user' ? 'Utente' : 'Chef'}: ${m.text}`)
+          .join('\n')
+
+        const fullPrompt = `${history}\nChef:`
+
+        const data = await callGemini(fullPrompt, systemPrompt, null)
+        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text
+          || 'Scusami, non sono riuscito a rispondere. Riprova.'
+        chatMessages.push({ role:'assistant', text: reply })
+      } catch (err) {
+        console.error(err)
+        chatMessages.push({
+          role:'assistant',
+          text:'Uffa, la mia connessione alla cucina si è interrotta. Riprova tra poco.'
+        })
+      } finally {
+        isSendingMsg = false
+        renderChat()
+      }
+    }
+
+    // --- Event listeners UI ---
+    document.getElementById('btn-add-pantry').onclick = () => {
+      const input = document.getElementById('input-pantry')
+      const value = input.value.trim().toLowerCase()
+      if (value && !pantryItems.includes(value)) {
+        pantryItems.push(value)
+        input.value = ''
+        renderPantry()
+        renderRecipesList()
+      }
+    }
+    document.getElementById('input-pantry').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btn-add-pantry').click()
+    })
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        activeTab = btn.getAttribute('data-tab')
+        renderTabs()
+      }
+    })
+
+    document.getElementById('btn-reset-plan').onclick = () => {
+      weeklyPlan = {}
+      renderPlanner()
+    }
+
+    document.getElementById('btn-ai-recipe').onclick =
+      document.getElementById('btn-ai-banner').onclick = () => {
+        generateAiRecipe()
+      }
+
+    document.getElementById('btn-ai-recipe-clear').onclick = () => {
+      aiRecipe = null
+      renderAiRecipeCard()
+    }
+
+    document.getElementById('chat-send').onclick = sendChatMessage
+    document.getElementById('chat-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendChatMessage()
+    })
+
+    // Init
+    renderTabs()
+    renderPantry()
+    renderRecipesList()
+    renderPlanner()
+    renderChat()
+  </script>
+</body>
 </html>
