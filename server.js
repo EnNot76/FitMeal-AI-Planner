@@ -29,17 +29,12 @@ app.use(cors({
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Chiamata generica a Gemini (senza responseSchema)
-async function callGemini({ prompt, systemInstruction = '' }) {
+async function callGemini({ prompt }) {
   const url = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }]
   };
-
-  if (systemInstruction) {
-    // v1 usa systemInstruction in camelCase [web:2][web:119]
-    payload.systemInstruction = { parts: [{ text: systemInstruction }] };
-  }
 
   const res = await fetch(url, {
     method: 'POST',
