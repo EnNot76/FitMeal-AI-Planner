@@ -13,66 +13,31 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ATTENZIONE: metti la chiave qui o in .env (consigliato)
-const API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6IHKA0XgwUR6TuqzIOVyK4qSIk-4VoHf27QCWuLCqzR9Q";
-const GEMINI_MODEL = "gemini-1.5-flash";
+const API_KEY = process.env.GEMINI_API_KEY;
+// Modello attuale; cambialo se necessario in base alla doc Google [web:119][web:2]
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
-// CORS per il frontend (stesso dominio:localhost:3000)
+// Middleware
+app.use(express.json());
 app.use(cors({
   origin: (origin, cb) => cb(null, true),
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type']
 }));
-app.use(express.json());
 
-// Static files
+// Static
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Schema ricetta (stesso tuo fitnessRecipeSchema)
-const fitnessRecipeSchema = {
-  type: "OBJECT",
-  properties: {
-    name: { type: "STRING" },
-    type: { type: "STRING" },
-    difficulty: { type: "STRING" },
-    ingredients: { type: "ARRAY", items: { type: "STRING" } },
-    missingIngredients: { type: "ARRAY", items: { type: "STRING" } },
-    instructions: { type: "ARRAY", items: { type: "STRING" } },
-    macros: {
-      type: "OBJECT",
-      properties: {
-        p: { type: "NUMBER" },
-        c: { type: "NUMBER" },
-        f: { type: "NUMBER" },
-        kcal: { type: "NUMBER" }
-      },
-      required: ["p", "c", "f", "kcal"]
-    },
-    fitnessBenefit: { type: "STRING" }
-  },
-  required: [
-    "name", "type", "difficulty",
-    "ingredients", "missingIngredients", "instructions",
-    "macros", "fitnessBenefit"
-  ]
-};
-
-async function callGemini({ prompt, systemInstruction = "", responseSchema = null }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
+// Chiamata generica a Gemini (senza responseSchema)
+async function callGemini({ prompt, systemInstruction = '' }) {
+  const url = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }]
   };
 
   if (systemInstruction) {
-    payload.systemInstruction = { parts: [{ text: systemInstruction }] };
-  }
-
-  if (responseSchema) {
-    payload.generationConfig = {
-      responseMimeType: "application/json",
-      responseSchema
-    };
+    payload.system_instruction = { parts: [{ text: systemInstruction }] };
   }
 
   const res = await fetch(url, {
@@ -89,27 +54,31 @@ async function callGemini({ prompt, systemInstruction = "", responseSchema = nul
   return res.json();
 }
 
-// --- ROUTE: ricetta AI ---
+// --- /api/gemini-recipe ---
 app.post('/api/gemini-recipe', async (req, res) => {
   try {
-    const pantry = Array.isArray(req.body.pantry) ? req.body.pantry : [];
-    const pantryString = pantry.join(', ');
+    const pantryArr = Array.isArray(req.body.pantry) ? req.body.pantry : [];
+    const pantryString = pantryArr.join(', ');
 
     const systemPrompt =
       "Sei un Biologo Nutrizionista Sportivo e Chef di altissimo livello. " +
-      "Il tuo compito è ideare una ricetta adatta ad atleti (high-protein, low-carb o low-fat) " +
-      "basandoti sugli ingredienti dell'utente. " +
-      "Calcola una stima realistica dei macronutrienti per porzione singola. " +
-      "Rispondi in italiano compilando rigorosamente lo schema JSON.";
+      "Devi restituire SOLO un JSON valido (senza testo aggiuntivo) con la seguente struttura: " +
+      "{ \"name\": string, \"type\": string, \"difficulty\": string, " +
+      "\"ingredients\": string[], \"missingIngredients\": string[], " +
+      "\"instructions\": string[], " +
+      "\"macros\": { \"p\": number, \"c\": number, \"f\": number, \"kcal\": number }, " +
+      "\"fitnessBenefit\": string }. " +
+      "Non aggiungere spiegazioni fuori dal JSON.";
 
     const userPrompt =
       `Dispensa attuale: ${pantryString}. ` +
-      `Genera una ricetta fit personalizzata, calcola i macronutrienti accuratamente e descrivi l'utilità sportiva.`;
+      `Genera una ricetta fit personalizzata per atleti (high-protein, low-carb o low-fat), ` +
+      `calcola i macronutrienti accuratamente e descrivi l'utilità sportiva. ` +
+      `Rispondi SOLO con il JSON descritto.`;
 
     const data = await callGemini({
       prompt: userPrompt,
-      systemInstruction: systemPrompt,
-      responseSchema: fitnessRecipeSchema
+      systemInstruction: systemPrompt
     });
 
     const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -117,7 +86,14 @@ app.post('/api/gemini-recipe', async (req, res) => {
       return res.status(500).json({ error: 'Nessun contenuto da Gemini' });
     }
 
-    const recipe = JSON.parse(textResponse);
+    let recipe;
+    try {
+      recipe = JSON.parse(textResponse);
+    } catch (err) {
+      console.error('JSON parse error (recipe):', err, textResponse);
+      return res.status(500).json({ error: 'Risposta Gemini non in JSON valido' });
+    }
+
     res.json(recipe);
   } catch (err) {
     console.error('Gemini recipe error:', err);
@@ -125,11 +101,10 @@ app.post('/api/gemini-recipe', async (req, res) => {
   }
 });
 
-// --- ROUTE: chat coach ---
+// --- /api/gemini-chat ---
 app.post('/api/gemini-chat', async (req, res) => {
   try {
     const { message, pantry, history } = req.body;
-
     const pantryArr = Array.isArray(pantry) ? pantry : [];
     const historyArr = Array.isArray(history) ? history : [];
 
@@ -137,8 +112,9 @@ app.post('/api/gemini-chat', async (req, res) => {
 
     const systemPrompt =
       `Sei il "Coach Nutrizionale FitPrep ✨", un esperto di nutrizione per sportivi, ` +
-      `bodybuilding e fitness. Rispondi in modo motivante, preciso ed estremamente tecnico ` +
-      `riguardo a calorie e macronutrienti, tenendo conto che l'utente ha a disposizione: ${pantryString}.`;
+      `bodybuilding e fitness. Rispondi in italiano, in modo motivante ma tecnico, ` +
+      `citando macro (kcal, proteine, carboidrati, grassi) e timing dei pasti. ` +
+      `L'utente ha a disposizione questi ingredienti: ${pantryString}.`;
 
     const historyContext = historyArr
       .slice(-6)
@@ -153,7 +129,7 @@ app.post('/api/gemini-chat', async (req, res) => {
     });
 
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Errore di comunicazione con i tuoi muscoli. Riprova!";
+      'Errore di comunicazione con i tuoi muscoli. Riprova!';
 
     res.json({ reply });
   } catch (err) {
@@ -162,11 +138,11 @@ app.post('/api/gemini-chat', async (req, res) => {
   }
 });
 
-// Fallback: index.html per qualsiasi route non API
+// Fallback: index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`FitPrep server running on http://localhost:${PORT}`);
+  console.log(`FitPrep server running on port ${PORT}`);
 });
