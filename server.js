@@ -37,7 +37,8 @@ async function callGemini({ prompt, systemInstruction = '' }) {
   };
 
   if (systemInstruction) {
-    payload.system_instruction = { parts: [{ text: systemInstruction }] };
+    // v1 usa systemInstruction in camelCase [web:2][web:119]
+    payload.systemInstruction = { parts: [{ text: systemInstruction }] };
   }
 
   const res = await fetch(url, {
