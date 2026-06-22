@@ -64,18 +64,17 @@ app.post('/api/gemini-recipe', async (req, res) => {
       "\"instructions\": string[], " +
       "\"macros\": { \"p\": number, \"c\": number, \"f\": number, \"kcal\": number }, " +
       "\"fitnessBenefit\": string }. " +
-      "Non aggiungere spiegazioni fuori dal JSON.";
+      "Non aggiungere spiegazioni fuori dal JSON.\n\n";
 
     const userPrompt =
-      `Dispensa attuale: ${pantryString}. ` +
+      `Dispensa attuale: ${pantryString}.\n` +
       `Genera una ricetta fit personalizzata per atleti (high-protein, low-carb o low-fat), ` +
       `calcola i macronutrienti accuratamente e descrivi l'utilità sportiva. ` +
       `Rispondi SOLO con il JSON descritto.`;
 
-    const data = await callGemini({
-      prompt: userPrompt,
-      systemInstruction: systemPrompt
-    });
+    const fullPrompt = systemPrompt + userPrompt;
+
+    const data = await callGemini({ prompt: fullPrompt });
 
     const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textResponse) {
@@ -110,19 +109,18 @@ app.post('/api/gemini-chat', async (req, res) => {
       `Sei il "Coach Nutrizionale FitPrep ✨", un esperto di nutrizione per sportivi, ` +
       `bodybuilding e fitness. Rispondi in italiano, in modo motivante ma tecnico, ` +
       `citando macro (kcal, proteine, carboidrati, grassi) e timing dei pasti. ` +
-      `L'utente ha a disposizione questi ingredienti: ${pantryString}.`;
+      `L'utente ha a disposizione questi ingredienti: ${pantryString}.\n\n`;
 
     const historyContext = historyArr
       .slice(-6)
       .map(m => `${m.role === 'user' ? 'Atleta' : 'Coach'}: ${m.text}`)
       .join('\n');
 
-    const fullPrompt = `${historyContext}\nAtleta: ${message}\nCoach:`;
+    const userTurn = `Atleta: ${message}\nCoach:`;
 
-    const data = await callGemini({
-      prompt: fullPrompt,
-      systemInstruction: systemPrompt
-    });
+    const fullPrompt = systemPrompt + historyContext + '\n' + userTurn;
+
+    const data = await callGemini({ prompt: fullPrompt });
 
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text ||
       'Errore di comunicazione con i tuoi muscoli. Riprova!';
