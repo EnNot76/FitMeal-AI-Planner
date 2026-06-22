@@ -2,79 +2,71 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>FitPrep - Node/Express</title>
+  <title>FitPrep - FitMeal AI Planner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
     .scrollbar-none::-webkit-scrollbar { display: none; }
     .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    @keyframes scaleIn { from { transform: scale(.98); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .animate-scaleIn { animation: scaleIn .18s ease-out; }
+    .tab-active {
+      color: #4f46e5;
+      border-top-width: 2px;
+      border-color: #4f46e5;
+      background-color: rgba(238, 242, 255, 0.7);
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-  <div class="max-w-3xl mx-auto min-h-screen flex flex-col p-4">
-    <header class="flex items-center justify-between mb-4">
-      <div>
-        <h1 class="text-2xl font-black text-slate-900">FitPrep</h1>
-        <p class="text-xs text-indigo-600 font-bold uppercase tracking-widest">
-          SvuotaFrigo Performance (Node/Express)
-        </p>
+  <div class="min-h-screen flex flex-col pb-20">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 backdrop-blur-md bg-opacity-95 shadow-sm">
+      <div class="max-w-3xl mx-auto px-4 py-3.5 flex justify-between items-center">
+        <div class="flex items-center gap-2.5">
+          <div class="bg-indigo-600 p-2 rounded-xl text-white shadow-md shadow-indigo-200">
+            🏋️
+          </div>
+          <div>
+            <h1 class="text-lg font-black tracking-tight text-slate-900">FitPrep</h1>
+            <p class="text-[10px] text-indigo-600 font-bold uppercase tracking-widest">
+              FitMeal AI Planner
+            </p>
+          </div>
+        </div>
+        <button id="btn-generate-recipe"
+          class="text-xs font-black py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 shadow-md shadow-indigo-100">
+          <span>Analizza Macro IA ✨</span>
+        </button>
       </div>
-      <button id="btn-generate-recipe"
-        class="text-xs font-black py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
-        Analizza Macro IA ✨
-      </button>
     </header>
 
-    <main class="flex-1 flex flex-col gap-4">
-      <!-- Dispensa -->
-      <section class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">
-          Dispensa atleta
-        </h2>
-        <div class="flex gap-2 mb-3">
-          <input id="input-pantry" type="text"
-            placeholder="Es. pollo, tonno, riso..."
-            class="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm" />
-          <button id="btn-add-pantry"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 rounded-xl text-sm font-bold">
-            Aggiungi
-          </button>
-        </div>
-        <div id="pantry-list" class="flex flex-wrap gap-2 text-xs"></div>
-      </section>
+    <!-- Main content (riempito da app.js) -->
+    <main class="flex-1 max-w-3xl mx-auto w-full p-4" id="main-content"></main>
 
-      <!-- Ricetta AI -->
-      <section class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">
-          Ricetta Nutrizionista IA
-        </h2>
-        <div id="recipe-loading" class="hidden text-xs text-slate-500 mb-2">
-          Calcolo macro in corso...
-        </div>
-        <div id="recipe-error" class="hidden text-xs text-red-600 mb-2"></div>
-        <div id="recipe-container" class="text-xs space-y-2"></div>
-      </section>
-
-      <!-- Chat Coach -->
-      <section class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col">
-        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">
-          Coach Nutrizionale IA
-        </h2>
-        <div id="chat-box" class="flex-1 min-h-[150px] max-h-[240px] overflow-y-auto border border-slate-100 rounded-xl p-2 text-xs space-y-2 bg-slate-50 scrollbar-none">
-        </div>
-        <div class="mt-2 flex gap-2">
-          <input id="chat-input" type="text"
-            placeholder="Chiedi qualcosa al Coach (pre-workout, macro, ecc.)"
-            class="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs" />
-          <button id="chat-send"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 rounded-xl text-xs font-bold">
-            Invia
-          </button>
-        </div>
-        <div id="chat-status" class="text-[10px] text-slate-400 mt-1"></div>
-      </section>
-    </main>
+    <!-- Tab bar -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe z-20 shadow-lg">
+      <div class="max-w-3xl mx-auto flex justify-between">
+        <button data-tab="pantry"
+          class="tab-btn flex flex-col items-center justify-center w-full py-3 text-slate-400">
+          <span class="text-[11px] font-bold tracking-wide">Dispensa</span>
+        </button>
+        <button data-tab="recipes"
+          class="tab-btn flex flex-col items-center justify-center w-full py-3 text-slate-400">
+          <span class="text-[11px] font-bold tracking-wide">Ricette Fit</span>
+        </button>
+        <button data-tab="coach"
+          class="tab-btn flex flex-col items-center justify-center w-full py-3 text-slate-400">
+          <span class="text-[11px] font-bold tracking-wide">Coach IA</span>
+        </button>
+        <button data-tab="planner"
+          class="tab-btn flex flex-col items-center justify-center w-full py-3 text-slate-400">
+          <span class="text-[11px] font-bold tracking-wide">Meal Prep</span>
+        </button>
+      </div>
+    </nav>
   </div>
 
   <script src="./app.js"></script>
